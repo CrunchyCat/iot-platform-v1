@@ -125,7 +125,7 @@ services:
       - kafka_data_3:/var/lib/kafka/data
 
   kafka-ui:
-    image: kafbat/kafka-ui:main
+    image: kafbat/kafka-ui:v1.4.2
     container_name: kafka_ui
     ports:
       - "8080:8080"

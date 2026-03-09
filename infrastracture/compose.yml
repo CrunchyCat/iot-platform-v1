@@ -9,17 +9,136 @@ services:
     ports:
       - "5433:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_devices_data:/var/lib/postgresql/data
     env_file:
       - .env
     environment:
       POSTGRES_USER: ${POSTGRES_DEVICES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_DEVICES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DEVICES_DB}
+    networks:
+      - iot-platform-net
     healthcheck:
       test: ["CMD", "pg_isready", "-U", "${POSTGRES_DEVICES_USER}"]
       interval: 30s
       retries: 5
 
+  postgres_command_db:
+    image: postgres:17-alpine
+    container_name: pg_command
+    restart: unless-stopped
+    ports:
+      - "5434:5432"
+    volumes:
+      - postgres_command_data:/var/lib/postgresql/data
+    env_file:
+      - .env
+    environment:
+      POSTGRES_USER: ${POSTGRES_COMMAND_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_COMMAND_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_COMMAND_DB}
+    networks:
+      - iot-platform-net
+    healthcheck:
+      test: [ "CMD", "pg_isready", "-U", "${POSTGRES_COMMAND_USER}" ]
+      interval: 30s
+      retries: 5
+
+  kafka_node_1:
+    image: confluentinc/cp-kafka:7.7.0
+    container_name: kafka_node_1
+    restart: unless-stopped
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_NODE_ID: 1
+      CLUSTER_ID: ${KAFKA_CLUSTER_ID}
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: CONTROLLER://0.0.0.0:9091,DOCKER_CLIENT://0.0.0.0:9092,BROKER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: DOCKER_CLIENT://kafka_node_1:9092,BROKER://kafka_node_1:9093
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,DOCKER_CLIENT:PLAINTEXT,BROKER:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: BROKER
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka_node_1:9091,2@kafka_node_2:9091,3@kafka_node_3:9091
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    healthcheck:
+      test: [ "CMD-SHELL", "kafka-topics --bootstrap-server localhost:9092 --list" ]
+      interval: 10s
+      retries: 5
+    networks:
+      - iot-platform-net
+    volumes:
+      - kafka_data_1:/var/lib/kafka/data
+
+  kafka_node_2:
+    image: confluentinc/cp-kafka:7.7.0
+    container_name: kafka_node_2
+    restart: unless-stopped
+    environment:
+      KAFKA_NODE_ID: 2
+      CLUSTER_ID: ${KAFKA_CLUSTER_ID}
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: CONTROLLER://0.0.0.0:9091,DOCKER_CLIENT://0.0.0.0:9092,BROKER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: DOCKER_CLIENT://kafka_node_2:9092,BROKER://kafka_node_2:9093
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,DOCKER_CLIENT:PLAINTEXT,BROKER:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: BROKER
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka_node_1:9091,2@kafka_node_2:9091,3@kafka_node_3:9091
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    healthcheck:
+      test: [ "CMD-SHELL", "kafka-topics --bootstrap-server localhost:9092 --list" ]
+      interval: 10s
+      retries: 5
+    networks:
+      - iot-platform-net
+    volumes:
+      - kafka_data_2:/var/lib/kafka/data
+
+  kafka_node_3:
+    image: confluentinc/cp-kafka:7.7.0
+    container_name: kafka_node_3
+    restart: unless-stopped
+    environment:
+      KAFKA_NODE_ID: 3
+      CLUSTER_ID: ${KAFKA_CLUSTER_ID}
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: CONTROLLER://0.0.0.0:9091,DOCKER_CLIENT://0.0.0.0:9092,BROKER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: DOCKER_CLIENT://kafka_node_3:9092,BROKER://kafka_node_3:9093
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,DOCKER_CLIENT:PLAINTEXT,BROKER:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: BROKER
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka_node_1:9091,2@kafka_node_2:9091,3@kafka_node_3:9091
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    healthcheck:
+      test: [ "CMD-SHELL", "kafka-topics --bootstrap-server localhost:9092 --list" ]
+      interval: 10s
+      retries: 5
+    networks:
+      - iot-platform-net
+    volumes:
+      - kafka_data_3:/var/lib/kafka/data
+
+  kafka-ui:
+    image: kafbat/kafka-ui:main
+    container_name: kafka_ui
+    ports:
+      - "8080:8080"
+    environment:
+      DYNAMIC_CONFIG_ENABLED: "true"
+      KAFKA_CLUSTERS_0_NAME: iot_platform_local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka_node_1:9092,kafka_node_2:9092,kafka_node_3:9092
+    networks:
+      - iot-platform-net
+    depends_on:
+      - kafka_node_1
+
+networks:
+  iot-platform-net:
+    driver: bridge
+
 volumes:
-  postgres_data:
+  postgres_devices_data:
+  postgres_command_data:
+  kafka_data_1:
+  kafka_data_2:
+  kafka_data_3:

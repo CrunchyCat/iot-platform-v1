@@ -138,6 +138,35 @@ services:
     depends_on:
       - kafka_node_1
 
+  redis:
+    image: redis:alpine
+    container_name: redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    networks:
+      - iot-platform-net
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      retries: 5
+
+  redis-ui:
+    image: rediscommander/redis-commander:latest
+    container_name: redis_ui
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    environment:
+      REDIS_HOST: redis
+    networks:
+      - iot-platform-net
+    depends_on:
+       redis:
+         condition: service_healthy
+
 networks:
   iot-platform-net:
     driver: bridge
@@ -148,3 +177,4 @@ volumes:
   kafka_data_1:
   kafka_data_2:
   kafka_data_3:
+  redis_data:

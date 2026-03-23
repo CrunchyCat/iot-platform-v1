@@ -138,6 +138,22 @@ services:
     depends_on:
       - kafka_node_1
 
+  schema-registry:
+    image: confluentinc/cp-schema-registry:7.9.6
+    container_name: schema-registry
+    ports:
+      - "8085:8085"
+    environment:
+      SCHEMA_REGISTRY_HOST_NAME: schema-registry
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: kafka_node_1:9092,kafka_node_2:9092,kafka_node_3:9092
+      SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8085
+    networks:
+      - iot-platform-net
+    depends_on:
+      - kafka_node_1
+      - kafka_node_2
+      - kafka_node_3
+
   redis:
     image: redis:alpine
     container_name: redis
